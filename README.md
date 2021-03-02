@@ -37,7 +37,51 @@ ii. 用于评价参与者一致性的evaluation集（包含了10个小型的ROIs
 
 #### 2.4 The DSA annotation interface
 
+DSA平台提供统一化的注释风格和提供分析管理的接口，对于整个研究过程进行数据管理和任务分配。
 
+#### 2.5 Annotation review process
+
+以下区域在crowdsourcing过程中被标注：
+i. tumor, stroma, lymphocyte-rich regions, necrosis（主要类）
+ii. artifacts, adipose tissue, blood vessels, blood, glandular secretions, extracellular mucoid material（非主要类）
+iii. plasma cells, mixed inflammatory infiltrates, normal ducts or acini, metaplastic changes, lymph vessels, skin adnexa, angioinvasion, nerves（有挑战性的类）
+
+stroma作为最常见的组成部分，被认定为default类，不用给注释。JP和SP参与者集中精力在注释主要类上面，在注释非主要类和有挑战性的类时，需要在Slack平台上请求反馈。SP和研究协调员通过下面两种机制来检查标注错误：
+i. 通过Slack向参与者提供反馈
+ii. 在原始标注之上生成新的修正叠加标注
+检查和校正分为两个阶段
+
+#### 2.6 Measuring annotstion discordance
+
+使用DSA的API查询多边形坐标并将其转化成脱机的掩码图像格式，其中像素值来编码区域类。对于参与者间不一致性的评估，使用Dice系数来计算：
+
+<img src=https://tva1.sinaimg.cn/large/e6c9d24egy1go5itxaezkj20h604st8x.jpg width=70%>
+
+其中i, j是两个参与者，对应的掩码i, j由c个二进制通道组成，$N_c$是所有考虑的类的总数。$\Delta_{i,j}$的取值范围在0到1之间，0表示完全一致。作者考虑采用两种方法来可视化参与者之间的不一致性：
+第一种是参与者间不一致矩阵的 bi-clustered heatmap（双聚类热图），该热图根据不一致轮廓对参与者进行分组；
+第二种是对不一致矩阵的MDS（多维标度）分析，该矩阵将参与者描述为二维空间中的点，其中越接近表示一致性越高。
+
+#### 2.7 Semantic segmentation and classification models
+
+预先训练好的完全卷积VGG-16和FCN-8神经网络被训练来讲组织学图像分割成五种类别：tumor, stroma, inflammatory infiltrates, necrosis, other classes. 平移变换和修剪等数据增强手段被用来提高模型鲁棒性。针对浸润性导管癌的125例ROI，对ROI的RGB图像采取颜色归一化。
+
+首先，为了研究分别采用众包和单一专家注释的训练效果，训练了语义分割的“comparison”模型。这些模型使用evaluation集的ROIs注释进行训练，并使用校正后的core集注释上进行评估。
+
+其次，为了评估峰值准确度，使用尽可能多的众包注释来训练用于语义分割的“full”模型。模型使用core集上的ROI注释进行训练，将82张slides（来自11家机构）分配给训练集，43张slides（来自7家机构）分配给测试集。这种按机构将ROI严格地分为要么训练集要么测试的处理手法，可以提供一种更好的对于数据开发的模型将如何推广到新机构和多机构的研究slides的度量。
+
+最后，为了评估训练集大小对于预测模型准确度的影响，使用了不同数量的众包注释数据开发了“scale-dependent”图像分类模型。由于训练上百个语义分割模型时间有限，取而代之的改为训练基于预先训练好的VGG-16的分类模型将224\*224的像素块按三个主要类：tumor, stroma, inflammatory infiltration进行分类，在语义分割模型中采取相同的训练集/测试集分配方法。
+
+### 3. Results
+
+#### 3.1 Annotation concordance is class-dependent
+
+不一致性随着种类的变化而变化，反映了在种类中固有的困难和主观性。Tumor注释的一致性最好，当只考虑主要类时，NP-NP注释的方差和SP-NP的偏差都比较低。
+
+其中necrosis/debris出现了高度的不一致性，这反映了许多参与者要么当它存在的时候忽略错过了这一类，要么误把stroma当成了necrosis。
+
+图例表显示了SP-NP像素平均的不一致性。Tumor的不一致大多发生在区域边界附近而lymphocytic infiltration和necrosis/debris的不一致性会更加的发散，且不局限于区域边界。
+
+#### 3.2 Feedback improves annotation quality
 
 
 
